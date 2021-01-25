@@ -16,7 +16,8 @@ arg_parser.add_argument('--traindir', required=True, help='Input path to the tra
 arg_parser.add_argument('--testdir', required=True, help='Input path to the test images directory')
 arg_parser.add_argument('--proto', required=True, help='Path to deploy.prototxt file')
 arg_parser.add_argument('--caffemodel', required=True, help='Path to your weights.caffemodel file')
-arg_parser.add_argument('--output', required=True, help='Output/save path')
+arg_parser.add_argument('--train_output', required=True, help='Training images output/save path')
+arg_parser.add_argument('--test_output', required=True, help='Testing images output/save')
 args = vars(arg_parser.parse_args())
 
 # create glob object for both train and test directories
@@ -111,9 +112,66 @@ for img in tqdm(train_img_glob):
     names.append(ONE_HOT_LABEL[label])
     
 # save to disk
-print('\n[STATUS] Saving to local path:', args['output'])
+print('\n[STATUS] Saving to local path:', args['train_output'])
 train_pickle = {'extracted_faces': train_extracted_faces, 'names': names}
-with open(args['output'], 'wb') as f:
+with open(args['train_output'], 'wb') as f:
     pickle.dump(train_pickle, f)
 
+print('\n[STATUS] Extracting training images completed')
+print('\n[STATUS] Extracting testting images')
+
+# do the same for test image
+test_extracted_faces = []
+names = []
+test_skipped = 0
+
+for img in tqdm(test_img_glob):
+    a = cv2.imread(img)
+    (h,w) = a.shape[:2]
+    blob = cv2.dnn.blobFromImage(a, scalefactor=1.0, size=(IMG_SIZE, IMG_SIZE), 
+                                 mean=(104.0, 177.0, 123.0), swapRB=False, crop=False)
+    face_model.setInput(blob)
+    detector = face_model.forward()
+    
+    if len(detector) > 0:
+        i = np.argmax(detector[0,0,:,2])
+        confidence = detector[0,0,i,2]
+        
+        if confidence > CONFIDENCE:
+            rect = detector[0,0,i,3:7] * np.array([w,h,w,h])
+            start_x, start_y, end_x, end_y = rect.astype('int')
+            
+            face = a[start_y:end_y, start_x:end_x]
+            
+            if face.size == 0:
+                print('Skipping...')
+                print('No face detected:', img)
+                test_skipped += 1
+                continue
+                
+            face = cv2.resize(face, (IMG_SIZE,IMG_SIZE))
+            face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+            cv2.rectangle(a, (start_x, start_y), (end_x, end_y), (255,255,255), 2)
+            
+            test_extracted_faces.append(face)
+        
+        else:
+            print('Skipping...')
+            print('Confidence below threshold:', img)
+            test_skipped += 1
+            continue
+    
+    label = re.findall('\\\\[a-z].*\\\\', img)[0]
+    label = label[1:-1]
+    
+    names.append(ONE_HOT_LABEL[label])
+    
+# save to disk
+print('\n[STATUS] Saving to local path:', args['test_output'])
+test_pickle = {'extracted_faces': test_extracted_faces, 'names': names}
+with open(args['test_output'], 'wb') as f:
+    pickle.dump(test_pickle, f)
+    
+print('[STATUS] Extracting training images completed')
+    
 print('Building dataset completed!')
