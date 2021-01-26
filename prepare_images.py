@@ -41,10 +41,6 @@ total = len(train_img_glob) + len(test_img_glob)
 percent_train = int(len(train_img_glob)/total * 100)
 percent_test = int(len(test_img_glob)/total * 100)
 
-print("\n[INFO] Total images:", total)
-print("[INFO] Total number of training images before preprocessing:", len(train_img_glob), "(", percent_train, "%)")
-print("[INFO] Total number of training images before preprocessing:", len(test_img_glob), "(", percent_test, "%)")
-
 # use cv2 built-in method cv2.dnn.readNetFromCaffe to extract faces
 print('\n[STATUS] Loading face detection model...')
 face_model = cv2.dnn.readNetFromCaffe(prototxt_file, caffemodel_file)
@@ -175,3 +171,13 @@ with open(args['test_output'], 'wb') as f:
 print('[STATUS] Extracting training images completed')
     
 print('Building dataset completed!')
+
+print("\nTotal images:", total)
+print("Total number of training images before preprocessing:", len(train_img_glob), "(", percent_train, "%)")
+print("Total number of training images before preprocessing:", len(test_img_glob), "(", percent_test, "%)")
+print("Training images skipped:", train_skipped)
+print("Total number of training images after preprocessing:", len(train_extracted_faces))
+print("Test images skipped:", test_skipped)
+print("Total number of training images after preprocessing:", len(test_extracted_faces))
+
+
